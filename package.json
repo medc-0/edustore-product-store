@@ -13,11 +13,16 @@
   "dependencies": {
     "@arcjet/node": "^1.0.0-beta.11",
     "@neondatabase/serverless": "^1.0.1",
+    "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
-    "morgan": "^1.10.1"
+    "lucide-react": "^0.545.0",
+    "morgan": "^1.10.1",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.9.4",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "daisyui": "^5.3.2",
