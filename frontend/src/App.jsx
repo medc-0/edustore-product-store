@@ -1,8 +1,8 @@
-import Navbar from "./components/Navbar";
-import HomePage from "./pages/HomePage";
-import ProductPage from "./pages/ProductPage";
+import Navbar from "./components/Navbar.jsx";
+import HomePage from "./pages/HomePage.jsx";
+import ProductPage from "./pages/ProductPage.jsx";
 
-import { Routes, Route } from "react.router-dom";
+import { Routes, Route } from "react-router-dom";
 
 function App() {
   return (
@@ -10,7 +10,7 @@ function App() {
       <Navbar />
 
       <Routes>
-        <Route path="/" element={<Homepage />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/product/:id" element={<ProductPage />} />
       </Routes>
     </div>
