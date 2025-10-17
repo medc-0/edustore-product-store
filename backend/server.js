@@ -3,76 +3,89 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+
 import productRoutes from "./routes/productRoutes.js";
 import { sql } from "./config/db.js";
+import { aj } from "./lib/arcjet.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __dirname = path.resolve();
 
-app.use(express.json()); // parse json body
-app.use(cors()); // cors
-app.use(helmet()); // security
-app.use(morgan("dev")); // logging
+app.use(express.json());
+app.use(cors());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+); // helmet is a security middleware that helps you protect your app by setting various HTTP headers
+app.use(morgan("dev")); // log the requests
 
-// apply use Arcjet middleware
+// apply arcjet rate-limit to all routes
 app.use(async (req, res, next) => {
   try {
     const decision = await aj.protect(req, {
-      requested: 1, // specifies that this request counts as 1 request against the rate limit
+      requested: 1, // specifies that each request consumes 1 token
     });
 
     if (decision.isDenied()) {
-      if (decision.reason.isRateLimited()) {
-        return res
-          .status(429)
-          .json({ error: "Too many requests - try again later" });
+      if (decision.reason.isRateLimit()) {
+        res.status(429).json({ error: "Too Many Requests" });
       } else if (decision.reason.isBot()) {
-        return res.status(403).json({ error: "Access denied for bots" });
+        res.status(403).json({ error: "Bot access denied" });
       } else {
-        return res.status(403).json({ error: "Forbidden" });
+        res.status(403).json({ error: "Forbidden" });
       }
       return;
     }
+
     // check for spoofed bots
-    if (
-      decision.results.some(
-        (result) => result.reason.isBot() && result.reason.isSpoofed()
-      )
-    ) {
-      res.status(403).json({ error: "Spoofed bots bots detected" });
+    if (decision.results.some((result) => result.reason.isBot() && result.reason.isSpoofed())) {
+      res.status(403).json({ error: "Spoofed bot detected" });
       return;
     }
 
     next();
   } catch (error) {
-    console.error("Error in Arcjet middleware:", error);
+    console.log("Arcjet error", error);
     next(error);
   }
 });
 
 app.use("/api/products", productRoutes);
 
+if (process.env.NODE_ENV === "production") {
+  // server our react app
+  app.use(express.static(path.join(__dirname, "/frontend/dist")));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+  });
+}
+
 async function initDB() {
   try {
     await sql`
-            CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            image VARCHAR(255) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
-    console.log("Database initialized");
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        image VARCHAR(255) NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    console.log("Database initialized successfully");
   } catch (error) {
-    console.error("Error initializing database:", error);
+    console.log("Error initDB", error);
   }
 }
 
 initDB().then(() => {
-  app.listen(PORT, async () => {
+  app.listen(PORT, () => {
     console.log("Server is running on port " + PORT);
   });
 });
