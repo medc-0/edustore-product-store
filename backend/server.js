@@ -24,36 +24,46 @@ app.use(
 ); // helmet is a security middleware that helps you protect your app by setting various HTTP headers
 app.use(morgan("dev")); // log the requests
 
-// apply arcjet rate-limit to all routes
-app.use(async (req, res, next) => {
-  try {
-    const decision = await aj.protect(req, {
-      requested: 1, // specifies that each request consumes 1 token
-    });
+// apply arcjet rate-limit to all routes in production only
+if (process.env.NODE_ENV === "production" && process.env.ARCJET_KEY) {
+  app.use(async (req, res, next) => {
+    try {
+      const decision = await aj.protect(req, {
+        requested: 1, // specifies that each request consumes 1 token
+      });
 
-    if (decision.isDenied()) {
-      if (decision.reason.isRateLimit()) {
-        res.status(429).json({ error: "Too Many Requests" });
-      } else if (decision.reason.isBot()) {
-        res.status(403).json({ error: "Bot access denied" });
-      } else {
-        res.status(403).json({ error: "Forbidden" });
+      if (decision.isDenied()) {
+        if (decision.reason.isRateLimit()) {
+          res.status(429).json({ error: "Too Many Requests" });
+        } else if (decision.reason.isBot()) {
+          res.status(403).json({ error: "Bot access denied" });
+        } else {
+          res.status(403).json({ error: "Forbidden" });
+        }
+        return;
       }
-      return;
-    }
 
-    // check for spoofed bots
-    if (decision.results.some((result) => result.reason.isBot() && result.reason.isSpoofed())) {
-      res.status(403).json({ error: "Spoofed bot detected" });
-      return;
-    }
+      // check for spoofed bots
+      if (
+        decision.results.some(
+          (result) => result.reason.isBot() && result.reason.isSpoofed()
+        )
+      ) {
+        res.status(403).json({ error: "Spoofed bot detected" });
+        return;
+      }
 
-    next();
-  } catch (error) {
-    console.log("Arcjet error", error);
-    next(error);
-  }
-});
+      next();
+    } catch (error) {
+      console.log("Arcjet error", error);
+      next(error);
+    }
+  });
+} else {
+  console.log(
+    "Arcjet protection skipped - running in non-production or ARCJET_KEY missing"
+  );
+}
 
 app.use("/api/products", productRoutes);
 

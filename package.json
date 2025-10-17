@@ -4,7 +4,9 @@
   "description": "",
   "main": "backend/server.js",
   "scripts": {
-    "dev": "nodemon backend/server.js",
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "nodemon backend/server.js",
+    "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
     "start": "node backend/server.js"
   },
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "daisyui": "^5.3.2",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "concurrently": "^8.2.0"
   }
 }
